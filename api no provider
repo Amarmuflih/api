@@ -12,7 +12,7 @@ class NewsPage extends StatefulWidget {
 }
 
 class _BlogPageState extends State<NewsPage> {
-  var baseUrl = Uri.parse('https://ensiklotahura.id/api/news');
+  var baseUrl = Uri.parse('https://ensiklotahura.com/api/news');
   List<BlogModel> _list = [];
   var loading = false;
   bool noMoreData = false;
