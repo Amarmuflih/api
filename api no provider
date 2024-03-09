@@ -1,0 +1,193 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_barcode1/blogs/blogdetail.dart';
+import 'package:flutter_barcode1/blogs/blogmodel.dart';
+import 'package:http/http.dart' as http;
+
+class NewsPage extends StatefulWidget {
+  const NewsPage({Key? key});
+
+  @override
+  State<NewsPage> createState() => _BlogPageState();
+}
+
+class _BlogPageState extends State<NewsPage> {
+  var baseUrl = Uri.parse('https://ensiklotahura.devars.id/api/news');
+  List<BlogModel> _list = [];
+  var loading = false;
+  bool noMoreData = false;
+  int page = 1;
+  int perPage = 2;
+
+  late ScrollController _scrollController;
+
+  bool loadingMore =
+      false; // Menunjukkan apakah sedang memuat lebih banyak data
+
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController = ScrollController()..addListener(_scrollListener);
+    _fetchData();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels ==
+        _scrollController.position.maxScrollExtent) {
+      // Saat pengguna mencapai bagian bawah daftar, muat data tambahan
+      if (!noMoreData && !loadingMore) {
+        _incrementPageWithDelay(); // Menggunakan fungsi yang menambahkan delay
+      }
+    }
+  }
+
+  Future<void> _fetchData() async {
+    if (noMoreData || loadingMore) {
+      return;
+    }
+
+    setState(() {
+      loadingMore = true;
+    });
+
+    try {
+      var urlWithPage = Uri.parse('$baseUrl?page=$page&per_page=$perPage');
+      final response = await http.get(urlWithPage);
+
+      if (response.statusCode == 200) {
+        final entry = jsonDecode(response.body);
+
+        setState(() {
+          _list.add(BlogModel.fromJson(entry));
+          loadingMore = false;
+          noMoreData = _list.length >= perPage;
+        });
+      }
+    } finally {
+      setState(() {
+        loadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _incrementPageWithDelay() async {
+    await Future.delayed(Duration(seconds: 2)); // Delay selama 2 detik
+    _incrementPage();
+  }
+
+  void _incrementPage() {
+    setState(() {
+      page++;
+    });
+    _fetchData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("News"),
+      ),
+      body: Container(
+        child: loading
+            ? Center(child: CircularProgressIndicator())
+            : (_list.isEmpty
+                ? Center(child: Text("Mohon Tunggu Data Akan Di muat"))
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemBuilder: (context, i) {
+                      if (i < _list.length) {
+                        final x = _list[i];
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    BlogDetail(data: x.data[0]),
+                              ),
+                            );
+                          },
+                          child: _NewsView(x, context),
+                        );
+                      } else if (noMoreData) {
+                        return Center(
+                          child: Text("Semua data telah dimuat"),
+                        );
+                      } else {
+                        return Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                    },
+                    itemCount: _list.length + (noMoreData ? 0 : 1),
+                  )),
+      ),
+    );
+  }
+
+  Container _NewsView(BlogModel x, BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(10.0),
+
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Image.network(
+            x.data[0].img,
+            fit: BoxFit.contain,
+          ),
+          Text(
+            x.data[0].tgl.toString(),
+          ),
+          Text(
+            x.data[0].judul,
+            style: TextStyle(fontSize: 30),
+          ),
+          Text(
+            x.data[0].isi,
+            style: TextStyle(
+              fontSize: 20,
+            ),
+            maxLines: 6,
+          ),
+          SizedBox(
+            height: 50,
+          ),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BlogDetail(data: x.data[1]),
+                ),
+              );
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Image.network(
+                  x.data[1].img,
+                ),
+                Text(
+                  x.data[1].tgl.toString(),
+                ),
+                Text(
+                  x.data[1].judul,
+                  style: TextStyle(fontSize: 30),
+                ),
+                Text(
+                  x.data[1].isi,
+                  style: TextStyle(fontSize: 20),
+                  maxLines: 6,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
